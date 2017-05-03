@@ -1,9 +1,18 @@
-<?php
+<?php declare(strict_types=1);
+
+/*
+ * This file is part of the Monolog package.
+ *
+ * (c) Jordi Boggiano <j.boggiano@seld.be>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
 
 namespace Monolog\Handler;
 
 use Monolog\Logger;
-use Monolog\TestCase;
+use Monolog\Test\TestCase;
 
 class FilterHandlerTest extends TestCase
 {
@@ -54,7 +63,7 @@ class FilterHandlerTest extends TestCase
         $this->assertFalse($test->hasEmergencyRecords());
 
         $test    = new TestHandler();
-        $handler = new FilterHandler($test, array(Logger::INFO, Logger::ERROR));
+        $handler = new FilterHandler($test, [Logger::INFO, Logger::ERROR]);
 
         $handler->handle($this->getRecord(Logger::DEBUG));
         $this->assertFalse($test->hasDebugRecords());
@@ -77,8 +86,18 @@ class FilterHandlerTest extends TestCase
         $test    = new TestHandler();
         $handler = new FilterHandler($test);
 
-        $levels = array(Logger::INFO, Logger::ERROR);
+        $levels = [Logger::INFO, Logger::ERROR];
         $handler->setAcceptedLevels($levels);
+        $this->assertSame($levels, $handler->getAcceptedLevels());
+
+        $handler->setAcceptedLevels(['info', 'error']);
+        $this->assertSame($levels, $handler->getAcceptedLevels());
+
+        $levels = [Logger::CRITICAL, Logger::ALERT, Logger::EMERGENCY];
+        $handler->setAcceptedLevels(Logger::CRITICAL, Logger::EMERGENCY);
+        $this->assertSame($levels, $handler->getAcceptedLevels());
+
+        $handler->setAcceptedLevels('critical', 'emergency');
         $this->assertSame($levels, $handler->getAcceptedLevels());
     }
 

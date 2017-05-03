@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types=1);
 
 /*
  * This file is part of the Monolog package.
@@ -12,7 +12,7 @@
 namespace Monolog\Handler;
 
 use Gelf\Message;
-use Monolog\TestCase;
+use Monolog\Test\TestCase;
 use Monolog\Logger;
 use Monolog\Formatter\GelfMessageFormatter;
 
@@ -43,7 +43,10 @@ class GelfHandlerTest extends TestCase
 
     protected function getMessagePublisher()
     {
-        return $this->getMock('Gelf\Publisher', array('publish'), array(), '', false);
+        return $this->getMockBuilder('Gelf\Publisher')
+            ->setMethods(['publish'])
+            ->disableOriginalConstructor()
+            ->getMock();
     }
 
     public function testDebug()
@@ -65,7 +68,6 @@ class GelfHandlerTest extends TestCase
         $handler = $this->getHandler($messagePublisher);
 
         $handler->handle($record);
-
     }
 
     public function testWarning()
@@ -114,6 +116,5 @@ class GelfHandlerTest extends TestCase
         $handler = $this->getHandler($messagePublisher);
         $handler->setFormatter(new GelfMessageFormatter('mysystem', 'EXT', 'CTX'));
         $handler->handle($record);
-
     }
 }

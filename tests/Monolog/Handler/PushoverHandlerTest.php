@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types=1);
 
 /*
  * This file is part of the Monolog package.
@@ -11,7 +11,7 @@
 
 namespace Monolog\Handler;
 
-use Monolog\TestCase;
+use Monolog\Test\TestCase;
 use Monolog\Logger;
 
 /**
@@ -22,7 +22,6 @@ use Monolog\Logger;
  */
 class PushoverHandlerTest extends TestCase
 {
-
     private $res;
     private $handler;
 
@@ -49,7 +48,7 @@ class PushoverHandlerTest extends TestCase
 
     public function testWriteWithComplexTitle()
     {
-        $this->createHandler('myToken', 'myUser', 'Backup finished - SQL1', Logger::EMERGENCY);
+        $this->createHandler('myToken', 'myUser', 'Backup finished - SQL1');
         $this->handler->handle($this->getRecord(Logger::CRITICAL, 'test1'));
         fseek($this->res, 0);
         $content = fread($this->res, 1024);
@@ -104,7 +103,7 @@ class PushoverHandlerTest extends TestCase
 
     public function testWriteToMultipleUsers()
     {
-        $this->createHandler('myToken', array('userA', 'userB'));
+        $this->createHandler('myToken', ['userA', 'userB']);
         $this->handler->handle($this->getRecord(Logger::EMERGENCY, 'test1'));
         fseek($this->res, 0);
         $content = fread($this->res, 1024);
@@ -115,15 +114,14 @@ class PushoverHandlerTest extends TestCase
 
     private function createHandler($token = 'myToken', $user = 'myUser', $title = 'Monolog')
     {
-        $constructorArgs = array($token, $user, $title);
+        $constructorArgs = [$token, $user, $title];
         $this->res = fopen('php://memory', 'a');
-        $this->handler = $this->getMock(
-            '\Monolog\Handler\PushoverHandler',
-            array('fsockopen', 'streamSetTimeout', 'closeSocket'),
-            $constructorArgs
-        );
+        $this->handler = $this->getMockBuilder('Monolog\Handler\PushoverHandler')
+            ->setConstructorArgs($constructorArgs)
+            ->setMethods(['fsockopen', 'streamSetTimeout', 'closeSocket'])
+            ->getMock();
 
-        $reflectionProperty = new \ReflectionProperty('\Monolog\Handler\SocketHandler', 'connectionString');
+        $reflectionProperty = new \ReflectionProperty('Monolog\Handler\SocketHandler', 'connectionString');
         $reflectionProperty->setAccessible(true);
         $reflectionProperty->setValue($this->handler, 'localhost:1234');
 

@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types=1);
 
 /*
  * This file is part of the Monolog package.
@@ -12,6 +12,8 @@
 namespace Monolog\Handler;
 
 use Monolog\Logger;
+use Monolog\Formatter\FlowdockFormatter;
+use Monolog\Formatter\FormatterInterface;
 
 /**
  * Sends notifications through the Flowdock push API
@@ -50,10 +52,32 @@ class FlowdockHandler extends SocketHandler
 
     /**
      * {@inheritdoc}
+     */
+    public function setFormatter(FormatterInterface $formatter): HandlerInterface
+    {
+        if (!$formatter instanceof FlowdockFormatter) {
+            throw new \InvalidArgumentException('The FlowdockHandler requires an instance of Monolog\Formatter\FlowdockFormatter to function correctly');
+        }
+
+        return parent::setFormatter($formatter);
+    }
+
+    /**
+     * Gets the default formatter.
+     *
+     * @suppress PhanTypeMissingReturn
+     */
+    protected function getDefaultFormatter(): FormatterInterface
+    {
+        throw new \InvalidArgumentException('The FlowdockHandler must be configured (via setFormatter) with an instance of Monolog\Formatter\FlowdockFormatter to function correctly');
+    }
+
+    /**
+     * {@inheritdoc}
      *
      * @param array $record
      */
-    public function write(array $record)
+    protected function write(array $record)
     {
         parent::write($record);
 

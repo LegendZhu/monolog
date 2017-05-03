@@ -1,4 +1,13 @@
-<?php
+<?php declare(strict_types=1);
+
+/*
+ * This file is part of the Monolog package.
+ *
+ * (c) Jordi Boggiano <j.boggiano@seld.be>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
 
 namespace Monolog\Handler;
 
@@ -12,8 +21,10 @@ use Monolog\Logger;
  * @author Hennadiy Verkh
  * @author Jordi Boggiano <j.boggiano@seld.be>
  */
-class FilterHandler extends AbstractHandler
+class FilterHandler extends Handler implements ProcessableHandlerInterface
 {
+    use ProcessableHandlerTrait;
+
     /**
      * Handler or factory callable($record, $this)
      *
@@ -22,9 +33,9 @@ class FilterHandler extends AbstractHandler
     protected $handler;
 
     /**
-     * Minimum level for logs that are passes to handler
+     * Minimum level for logs that are passed to handler
      *
-     * @var int
+     * @var int[]
      */
     protected $acceptedLevels;
 
@@ -46,28 +57,34 @@ class FilterHandler extends AbstractHandler
         $this->handler  = $handler;
         $this->bubble   = $bubble;
         $this->setAcceptedLevels($minLevelOrList, $maxLevel);
+
+        if (!$this->handler instanceof HandlerInterface && !is_callable($this->handler)) {
+            throw new \RuntimeException("The given handler (".json_encode($this->handler).") is not a callable nor a Monolog\Handler\HandlerInterface object");
+        }
     }
 
     /**
      * @return array
      */
-    public function getAcceptedLevels()
+    public function getAcceptedLevels(): array
     {
         return array_flip($this->acceptedLevels);
     }
 
     /**
-     * @param int|array $minLevelOrList A list of levels to accept or a minimum level if maxLevel is provided
-     * @param int       $maxLevel       Maximum level to accept, only used if $minLevelOrList is not an array
+     * @param int|string|array $minLevelOrList A list of levels to accept or a minimum level or level name if maxLevel is provided
+     * @param int|string       $maxLevel       Maximum level or level name to accept, only used if $minLevelOrList is not an array
      */
     public function setAcceptedLevels($minLevelOrList = Logger::DEBUG, $maxLevel = Logger::EMERGENCY)
     {
         if (is_array($minLevelOrList)) {
-            $acceptedLevels = $minLevelOrList;
+            $acceptedLevels = array_map('Monolog\Logger::toMonologLevel', $minLevelOrList);
         } else {
-            $acceptedLevels = array_filter(Logger::getLevels(), function ($level) use ($minLevelOrList, $maxLevel) {
+            $minLevelOrList = Logger::toMonologLevel($minLevelOrList);
+            $maxLevel = Logger::toMonologLevel($maxLevel);
+            $acceptedLevels = array_values(array_filter(Logger::getLevels(), function ($level) use ($minLevelOrList, $maxLevel) {
                 return $level >= $minLevelOrList && $level <= $maxLevel;
-            });
+            }));
         }
         $this->acceptedLevels = array_flip($acceptedLevels);
     }
@@ -75,7 +92,7 @@ class FilterHandler extends AbstractHandler
     /**
      * {@inheritdoc}
      */
-    public function isHandling(array $record)
+    public function isHandling(array $record): bool
     {
         return isset($this->acceptedLevels[$record['level']]);
     }
@@ -83,7 +100,7 @@ class FilterHandler extends AbstractHandler
     /**
      * {@inheritdoc}
      */
-    public function handle(array $record)
+    public function handle(array $record): bool
     {
         if (!$this->isHandling($record)) {
             return false;
@@ -91,12 +108,6 @@ class FilterHandler extends AbstractHandler
 
         // The same logic as in FingersCrossedHandler
         if (!$this->handler instanceof HandlerInterface) {
-            if (!is_callable($this->handler)) {
-                throw new \RuntimeException(
-                    "The given handler (" . json_encode($this->handler)
-                    . ") is not a callable nor a Monolog\\Handler\\HandlerInterface object"
-                );
-            }
             $this->handler = call_user_func($this->handler, $record, $this);
             if (!$this->handler instanceof HandlerInterface) {
                 throw new \RuntimeException("The factory callable should return a HandlerInterface");
@@ -104,9 +115,7 @@ class FilterHandler extends AbstractHandler
         }
 
         if ($this->processors) {
-            foreach ($this->processors as $processor) {
-                $record = call_user_func($processor, $record);
-            }
+            $record = $this->processRecord($record);
         }
 
         $this->handler->handle($record);
@@ -119,7 +128,7 @@ class FilterHandler extends AbstractHandler
      */
     public function handleBatch(array $records)
     {
-        $filtered = array();
+        $filtered = [];
         foreach ($records as $record) {
             if ($this->isHandling($record)) {
                 $filtered[] = $record;

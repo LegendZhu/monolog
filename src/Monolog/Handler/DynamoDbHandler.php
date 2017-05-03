@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types=1);
 
 /*
  * This file is part of the Monolog package.
@@ -13,6 +13,8 @@ namespace Monolog\Handler;
 
 use Aws\Common\Aws;
 use Aws\DynamoDb\DynamoDbClient;
+use Monolog\Formatter\FormatterInterface;
+use Aws\DynamoDb\Marshaler;
 use Monolog\Formatter\ScalarFormatter;
 use Monolog\Logger;
 
@@ -37,15 +39,28 @@ class DynamoDbHandler extends AbstractProcessingHandler
     protected $table;
 
     /**
+     * @var int
+     */
+    protected $version;
+
+    /**
+     * @var Marshaler
+     */
+    protected $marshaler;
+
+    /**
      * @param DynamoDbClient $client
      * @param string         $table
-     * @param integer        $level
-     * @param boolean        $bubble
+     * @param int            $level
+     * @param bool           $bubble
      */
     public function __construct(DynamoDbClient $client, $table, $level = Logger::DEBUG, $bubble = true)
     {
-        if (!defined('Aws\Common\Aws::VERSION') || version_compare('3.0', Aws::VERSION, '<=')) {
-            throw new \RuntimeException('The DynamoDbHandler is only known to work with the AWS SDK 2.x releases');
+        if (defined('Aws\Common\Aws::VERSION') && version_compare(Aws::VERSION, '3.0', '>=')) {
+            $this->version = 3;
+            $this->marshaler = new Marshaler;
+        } else {
+            $this->version = 2;
         }
 
         $this->client = $client;
@@ -60,12 +75,16 @@ class DynamoDbHandler extends AbstractProcessingHandler
     protected function write(array $record)
     {
         $filtered = $this->filterEmptyFields($record['formatted']);
-        $formatted = $this->client->formatAttributes($filtered);
+        if ($this->version === 3) {
+            $formatted = $this->marshaler->marshalItem($filtered);
+        } else {
+            $formatted = $this->client->formatAttributes($filtered);
+        }
 
-        $this->client->putItem(array(
+        $this->client->putItem([
             'TableName' => $this->table,
-            'Item' => $formatted
-        ));
+            'Item' => $formatted,
+        ]);
     }
 
     /**
@@ -82,7 +101,7 @@ class DynamoDbHandler extends AbstractProcessingHandler
     /**
      * {@inheritdoc}
      */
-    protected function getDefaultFormatter()
+    protected function getDefaultFormatter(): FormatterInterface
     {
         return new ScalarFormatter(self::DATE_FORMAT);
     }

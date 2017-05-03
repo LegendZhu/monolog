@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types=1);
 
 /*
  * This file is part of the Monolog package.
@@ -28,8 +28,8 @@ use InvalidArgumentException;
  *
  * function testLogger()
  * {
- *     Monolog\Registry::api()->addError('Sent to $api Logger instance');
- *     Monolog\Registry::application()->addError('Sent to $application Logger instance');
+ *     Monolog\Registry::api()->error('Sent to $api Logger instance');
+ *     Monolog\Registry::application()->error('Sent to $application Logger instance');
  * }
  * </code>
  *
@@ -38,18 +38,18 @@ use InvalidArgumentException;
 class Registry
 {
     /**
-     * List of all loggers in the registry (ba named indexes)
+     * List of all loggers in the registry (by named indexes)
      *
      * @var Logger[]
      */
-    private static $loggers = array();
+    private static $loggers = [];
 
     /**
      * Adds new logging channel to the registry
      *
      * @param  Logger                    $logger    Instance of the logging channel
      * @param  string|null               $name      Name of the logging channel ($logger->getName() by default)
-     * @param  boolean                   $overwrite Overwrite instance in the registry if the given name already exists?
+     * @param  bool                      $overwrite Overwrite instance in the registry if the given name already exists?
      * @throws \InvalidArgumentException If $overwrite set to false and named Logger instance already exists
      */
     public static function addLogger(Logger $logger, $name = null, $overwrite = false)
@@ -61,6 +61,22 @@ class Registry
         }
 
         self::$loggers[$name] = $logger;
+    }
+
+    /**
+     * Checks if such logging channel exists by name or instance
+     *
+     * @param string|Logger $logger Name or logger instance
+     */
+    public static function hasLogger($logger): bool
+    {
+        if ($logger instanceof Logger) {
+            $index = array_search($logger, self::$loggers, true);
+
+            return false !== $index;
+        }
+
+        return isset(self::$loggers[$logger]);
     }
 
     /**
@@ -84,17 +100,16 @@ class Registry
      */
     public static function clear()
     {
-        self::$loggers = array();
+        self::$loggers = [];
     }
 
     /**
      * Gets Logger instance from the registry
      *
      * @param  string                    $name Name of the requested Logger instance
-     * @return Logger                    Requested instance of Logger
      * @throws \InvalidArgumentException If named Logger instance is not in the registry
      */
-    public static function getInstance($name)
+    public static function getInstance($name): Logger
     {
         if (!isset(self::$loggers[$name])) {
             throw new InvalidArgumentException(sprintf('Requested "%s" logger instance is not in the registry', $name));
@@ -108,8 +123,8 @@ class Registry
      *
      * @param  string                    $name      Name of the requested Logger instance
      * @param  array                     $arguments Arguments passed to static method call
-     * @return Logger                    Requested instance of Logger
      * @throws \InvalidArgumentException If named Logger instance is not in the registry
+     * @return Logger                    Requested instance of Logger
      */
     public static function __callStatic($name, $arguments)
     {
